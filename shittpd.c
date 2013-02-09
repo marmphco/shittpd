@@ -52,7 +52,7 @@ void respond(int socket, char *request) {
     write(socket, mesg3, strlen(mesg3));
     write(socket, response, strlen(response));
     fclose(resource);
-    free(response);
+    if (resource != NULL) free(response);
 }
 
 int main(int argc, char **argv) {
