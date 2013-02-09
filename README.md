@@ -1,10 +1,9 @@
-#SHITTPD
+#Shittpd
 ###The Super Hyper Interwebs Text Transfer Protocol Daemon  
-Pronounced shit-tee-pee-dee
+Pronounced shit-tee
 
-This doesn't work right now. I responds to all requests with "The Super Hyper Interwebs Text Transfer Protocol Daemon".
+Shittpd is a simple, but disfunctional http server, hence the name shittpd.
 
-SHITTPD is just a project to help me learn more about sockets and threading.
+It doesn't work right now. It responds to all requests with "The Super Hyper Interwebs Text Transfer Protocol Daemon".
 
-Hopefully within the near future it will work.
-
+Shittpd is just a project to help me learn more about sockets and threading. Hopefully within the near future it will work properly.

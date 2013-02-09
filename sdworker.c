@@ -12,9 +12,11 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+static const int REQUEST_MAX_SIZE = 4096;
+
 struct SDWorker {
     sdHandler_t handler;
-    //bool working;
+
     int socket;
     pthread_mutex_t working;
     pthread_cond_t newrequest;
@@ -34,10 +36,11 @@ SDWorkerRef sdWorkerAlloc(sdHandler_t handler) {
 }
 
 void sdWorkerDestroy(SDWorkerRef *worker) {
-    if (worker != NULL && *worker != NULL) {
-        free(*worker);
-        *worker = NULL;
-    }
+    assert(worker != NULL && *worker != NULL);
+    pthread_mutex_destroy(&(*worker)->working);
+    pthread_cond_destroy(&(*worker)->newrequest);
+    free(*worker);
+    *worker = NULL;
 }
 
 void *work(void *arg) {
@@ -48,16 +51,12 @@ void *work(void *arg) {
         SDLOG("recieving request");
         int sock = worker->socket;
 
-        char buffer[4096];
+        char buffer[REQUEST_MAX_SIZE];
         int readcount = 0;
-        while ((readcount = recv(sock, buffer, 4096, 0)) > 0) {
-            buffer[readcount] = '\0';
-            SDLOG("%s", buffer);
-            if (buffer[readcount-1] == '\n') {
-                //request header is finished at \n
-                break;
-            }
-        }
+        readcount = recv(sock, buffer, REQUEST_MAX_SIZE, 0);
+        buffer[readcount] = '\0';
+        SDLOG("%s", buffer);
+
         //start response
         SDLOG("handling request");
         worker->handler(sock, buffer);

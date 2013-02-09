@@ -62,8 +62,8 @@ void *sdListen(void *arg) {
     for (;;) {
         struct sockaddr_in caddr;
         socklen_t caddrsize = sizeof(caddr);
-        int csock = accept(listener->socket, (struct sockaddr *)&caddr, &caddrsize);
-        if (csock == -1) {
+        int sock = accept(listener->socket, (struct sockaddr *)&caddr, &caddrsize);
+        if (sock == -1) {
             if (listener->stopped == 1) {
                 SDLOG("Listener stopped");
             } else {
@@ -73,25 +73,25 @@ void *sdListen(void *arg) {
         }
 
         SDLOG("accepted connection");
-        sdWorkerSubmitRequest(listener->target, csock);
+        sdWorkerSubmitRequest(listener->target, sock);
     }
     pthread_exit(0);
     return 0;
 }
 
-void sdListenerStart(SDListenerRef listener) {
+bool sdListenerStart(SDListenerRef listener) {
     int status = bind(listener->socket, 
                       (struct sockaddr *)&listener->address,
                       sizeof(listener->address));
     if (status == -1) {
         SDLOG("Error binding socket on port: %d", listener->port);
-        return;
+        return false;
     }
 
     status = listen(listener->socket, listener->backlog);
     if (status == -1) {
         SDLOG("Error listening on socket on port: %d", listener->port);
-        return;
+        return false;
     }
     SDLOG("listener starting");
     listener->stopped = 0;
@@ -103,6 +103,8 @@ void sdListenerStart(SDListenerRef listener) {
     pthread_create(&listenThread, &newthreadattr, sdListen, listener);
 
     pthread_attr_destroy(&newthreadattr);
+
+    return true;
 }
 
 void sdListenerStop(SDListenerRef listener) {

@@ -13,7 +13,7 @@ SDListenerRef sdListenerAlloc(int port, int backlog);
 void sdListenerDestroy(SDListenerRef *);
 
 //binds the socket and starts listening
-void sdListenerStart(SDListenerRef);
+bool sdListenerStart(SDListenerRef);
 void sdListenerStop(SDListenerRef);
 
 void sdListenerTarget(SDListenerRef, SDWorkerRef);
