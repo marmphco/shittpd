@@ -1,0 +1,7 @@
+/*
+  sdworker.c
+*/
+
+struct SDWorker {
+
+};

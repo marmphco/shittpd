@@ -2,10 +2,13 @@ INCLUDEDEPS = ${filter clean,${MAKECMDGOALS}}
 COMPILER = clang
 FLAGS = -Wall -Wextra -std=ansi
 BIN = shittpd
-CSOURCE = *.c
+CSOURCE = shittpd.c sdlistener.c sddispatch.c sdworker.c
 OBJECTS = ${patsubst %.c,%.o,${CSOURCE}}
 
 all: shittpd
+
+run: shittpd
+	./shittpd
 
 ${BIN}: ${OBJECTS}
 	${COMPILER} -o ${BIN} ${OBJECTS}
@@ -14,11 +17,12 @@ ${BIN}: ${OBJECTS}
 	${COMPILER} -c $^
 
 dependencies: ${CSOURCE}
-	${COMPILER} -MM ${CSOURCE}
+	${COMPILER} -MM ${CSOURCE} > dependencies
 
 clean:
 	- rm ${OBJECTS}
 	- rm dependencies
+	- rm *.gch
 
 ifeq "${INCLUDEDEPS}" ""
 include dependencies
