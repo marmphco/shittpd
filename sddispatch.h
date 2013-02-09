@@ -7,4 +7,7 @@
 
 typedef struct SDDispatch *SDDispatchRef;
 
+SDDispatchRef sdDispatchAlloc();
+void sdDispatchDestroy(SDDispatchRef *);
+
 #endif

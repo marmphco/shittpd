@@ -5,8 +5,9 @@
 #ifndef SD_LISTENER_H
 #define SD_LISTENER_H
 
+#include "sdworker.h"
+
 typedef struct SDListener *SDListenerRef;
-typedef void (*sdHandler_t)(int socket);
 
 SDListenerRef sdListenerAlloc(int port, int backlog);
 void sdListenerDestroy(SDListenerRef *);
@@ -14,5 +15,7 @@ void sdListenerDestroy(SDListenerRef *);
 //binds the socket and starts listening
 void sdListenerStart(SDListenerRef);
 void sdListenerStop(SDListenerRef);
+
+void sdListenerTarget(SDListenerRef, SDWorkerRef);
 
 #endif

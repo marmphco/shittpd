@@ -15,4 +15,8 @@
 #define SDLOG(fmt) 
 #endif
 
+typedef enum {
+    false, true
+} bool;
+
 #endif
