@@ -23,8 +23,7 @@ struct SDListener {
     int backlog;
     int stopped;
 
-    //temporary
-    SDWorkerRef target;
+    SDRequestQueueRef queue;
 };
 
 SDListenerRef sdListenerAlloc(int port, int backlog) {
@@ -43,7 +42,7 @@ SDListenerRef sdListenerAlloc(int port, int backlog) {
     listener->backlog = backlog;
     listener->port = port;
     listener->stopped = 0;
-    listener->target = NULL;
+    listener->queue = sdRequestQueueAlloc();
 
     SDLOG("listener allocated");
     return listener;
@@ -51,10 +50,11 @@ SDListenerRef sdListenerAlloc(int port, int backlog) {
 
 void sdListenerDestroy(SDListenerRef *listener) {
     if (*listener != NULL) {
+        sdRequestQueueDestroy(&(*listener)->queue);
         free(*listener);
         *listener = NULL;
     }
-    SDLOG("listener destroyed");
+    SDLOG("Listener %p: Destroyed", *listener);
 }
 
 void *sdListen(void *arg) {
@@ -62,6 +62,7 @@ void *sdListen(void *arg) {
     for (;;) {
         struct sockaddr_in caddr;
         socklen_t caddrsize = sizeof(caddr);
+        SDLOG("Listener %p: Listening for connections", listener);
         int sock = accept(listener->socket, (struct sockaddr *)&caddr, &caddrsize);
         if (sock == -1) {
             if (listener->stopped == 1) {
@@ -72,8 +73,11 @@ void *sdListen(void *arg) {
             break;
         }
 
-        SDLOG("accepted connection");
-        sdWorkerSubmitRequest(listener->target, sock);
+        SDLOG("Listener %p: socket %d: Accepted connection", listener, sock);
+        sdRequestQueuePut(listener->queue, sock);
+        SDLOG("Listener %p: socket %d: Enqueued connection", listener, sock);
+        struct timespec t = {0, 1};
+        nanosleep(&t, NULL);
     }
     pthread_exit(0);
     return 0;
@@ -93,7 +97,7 @@ bool sdListenerStart(SDListenerRef listener) {
         SDLOG("Error listening on socket on port: %d", listener->port);
         return false;
     }
-    SDLOG("listener starting");
+    SDLOG("Listener %p: Starting", listener);
     listener->stopped = 0;
     pthread_attr_t newthreadattr;
     pthread_attr_init(&newthreadattr);
@@ -108,11 +112,12 @@ bool sdListenerStart(SDListenerRef listener) {
 }
 
 void sdListenerStop(SDListenerRef listener) {
-    SDLOG("listener stopping");
+    SDLOG("listener %p: Stopping", listener);
     listener->stopped = 1; //pthread_cancel?
     close(listener->socket); //implicitly cancels the listener thread
 }
 
-void sdListenerTarget(SDListenerRef listener, SDWorkerRef worker) {
-    listener->target = worker;
+SDRequestQueueRef sdListenerRequestQueue(SDListenerRef listener) {
+    return listener->queue;
 }
+

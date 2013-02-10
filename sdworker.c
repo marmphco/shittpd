@@ -16,40 +16,35 @@ static const int REQUEST_MAX_SIZE = 4096;
 
 struct SDWorker {
     sdHandler_t handler;
-
-    int socket;
-    pthread_mutex_t working;
-    pthread_cond_t newrequest;
-
+    SDRequestQueueRef queue;
     pthread_t thread;
 };
 
-SDWorkerRef sdWorkerAlloc(sdHandler_t handler) {
+SDWorkerRef sdWorkerAlloc(sdHandler_t handler, SDRequestQueueRef queue) {
     SDWorkerRef worker = malloc(sizeof(struct SDWorker));
     worker->handler = handler;
-    //worker->working = false;
 
-    pthread_mutex_init(&worker->working, NULL);
-    pthread_cond_init(&worker->newrequest, NULL);
+    worker->queue = queue;
 
     return worker;
 }
 
 void sdWorkerDestroy(SDWorkerRef *worker) {
     assert(worker != NULL && *worker != NULL);
-    pthread_mutex_destroy(&(*worker)->working);
-    pthread_cond_destroy(&(*worker)->newrequest);
     free(*worker);
     *worker = NULL;
 }
 
 void *work(void *arg) {
     SDWorkerRef worker = (SDWorkerRef)arg;
-    pthread_mutex_lock(&worker->working);
     for(;;) {
-        pthread_cond_wait(&worker->newrequest, &worker->working);
-        SDLOG("recieving request");
-        int sock = worker->socket;
+        SDLOG("Worker %p: Waiting", worker);
+        int sock = sdRequestQueueGet(worker->queue);
+        if (sock == -1) {
+            SDLOG("Worker %p: Request already taken", worker);
+            continue;
+        }
+        SDLOG("Worker %p: socket %d : Recieving request", worker, sock);
 
         char buffer[REQUEST_MAX_SIZE];
         int readcount = 0;
@@ -58,19 +53,18 @@ void *work(void *arg) {
         SDLOG("%s", buffer);
 
         //start response
-        SDLOG("handling request");
+        SDLOG("Worker %p: socket %d : Handling request", worker, sock);
         worker->handler(sock, buffer);
-        SDLOG("closing connection");
+        SDLOG("Worker %p: socket %d : Closing connection", worker, sock);
         close(sock);
     }
-    pthread_mutex_unlock(&worker->working);
     pthread_exit(0);
     return 0;
 }
 
 void sdWorkerStart(SDWorkerRef worker) {
     assert(worker != NULL);
-    SDLOG("starting worker");
+    SDLOG("Worker %p: Starting", worker);
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -78,20 +72,12 @@ void sdWorkerStart(SDWorkerRef worker) {
     pthread_create(&worker->thread, &attr, work, worker);
 
     pthread_attr_destroy(&attr);
-    SDLOG("worker started");
+    SDLOG("Worker %p: Started", worker);
 }
 
 void sdWorkerStop(SDWorkerRef worker) {
     assert(worker != NULL);
-    SDLOG("stopping worker");
+    SDLOG("Worker %p: Stopping", worker);
     pthread_cancel(worker->thread);
-    SDLOG("worker stopped");
-}
-
-void sdWorkerSubmitRequest(SDWorkerRef worker, int socket) {
-    SDLOG("submitting request to worker: %p", worker);
-    pthread_mutex_lock(&worker->working);
-    pthread_cond_signal(&worker->newrequest);
-    pthread_mutex_unlock(&worker->working);
-    worker->socket = socket;
+    SDLOG("Worker %p: Stopped", worker);
 }

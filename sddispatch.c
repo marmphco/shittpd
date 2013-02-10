@@ -1,7 +1,0 @@
-/*
-  sddispatch.c
-*/
-
-struct SDDispatch {
-
-};

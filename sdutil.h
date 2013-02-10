@@ -10,9 +10,9 @@
 #define SD_DEBUG
 
 #ifdef SD_DEBUG
-#define SDLOG(fmt, ...) fprintf(stderr, fmt"\n", ##__VA_ARGS__)
+#define SDLOG(fmt, ...) fprintf(stderr, fmt"\n", ##__VA_ARGS__); fflush(stderr);
 #else
-#define SDLOG(fmt) 
+#define SDLOG(fmt, ...) 
 #endif
 
 typedef enum {
