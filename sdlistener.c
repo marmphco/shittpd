@@ -54,7 +54,7 @@ void sdListenerDestroy(SDListenerRef *listener) {
         free(*listener);
         *listener = NULL;
     }
-    SDLOG("listener destroyed");
+    SDLOG("Listener %p: Destroyed", *listener);
 }
 
 void *sdListen(void *arg) {
@@ -62,6 +62,7 @@ void *sdListen(void *arg) {
     for (;;) {
         struct sockaddr_in caddr;
         socklen_t caddrsize = sizeof(caddr);
+        SDLOG("Listener %p: Listening for connections", listener);
         int sock = accept(listener->socket, (struct sockaddr *)&caddr, &caddrsize);
         if (sock == -1) {
             if (listener->stopped == 1) {
@@ -72,8 +73,10 @@ void *sdListen(void *arg) {
             break;
         }
 
-        SDLOG("accepted connection");
+        SDLOG("Listener %p: socket %d: Accepted connection", listener, sock);
         sdWorkerSubmitRequest(listener->target, sock);
+        struct timespec t = {0, 1};
+        nanosleep(&t, NULL);
     }
     pthread_exit(0);
     return 0;
@@ -93,7 +96,7 @@ bool sdListenerStart(SDListenerRef listener) {
         SDLOG("Error listening on socket on port: %d", listener->port);
         return false;
     }
-    SDLOG("listener starting");
+    SDLOG("Listener %p: Starting", listener);
     listener->stopped = 0;
     pthread_attr_t newthreadattr;
     pthread_attr_init(&newthreadattr);
@@ -108,7 +111,7 @@ bool sdListenerStart(SDListenerRef listener) {
 }
 
 void sdListenerStop(SDListenerRef listener) {
-    SDLOG("listener stopping");
+    SDLOG("listener %p: Stopping", listener);
     listener->stopped = 1; //pthread_cancel?
     close(listener->socket); //implicitly cancels the listener thread
 }

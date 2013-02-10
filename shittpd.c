@@ -9,7 +9,6 @@
 #include <unistd.h>
 
 #include "sdlistener.h"
-#include "sddispatch.h"
 #include "sdworker.h"
 #include "sdutil.h"
 
@@ -56,7 +55,7 @@ void respond(int socket, char *request) {
 }
 
 int main(int argc, char **argv) {
-    SDListenerRef listener = sdListenerAlloc(8000, 1);
+    SDListenerRef listener = sdListenerAlloc(8000, 8);
     SDWorkerRef worker = sdWorkerAlloc(respond);
     sdListenerTarget(listener, worker);
     sdWorkerStart(worker);

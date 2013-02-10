@@ -2,7 +2,7 @@ INCLUDEDEPS = ${filter clean,${MAKECMDGOALS}}
 COMPILER = clang
 FLAGS = -Wall -Wextra -std=ansi
 BIN = shittpd
-CSOURCE = shittpd.c sdlistener.c sddispatch.c sdworker.c
+CSOURCE = shittpd.c sdlistener.c sdworker.c
 OBJECTS = ${patsubst %.c,%.o,${CSOURCE}}
 
 all: shittpd
