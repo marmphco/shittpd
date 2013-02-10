@@ -14,6 +14,7 @@
 
 static int count = 0;
 
+// this doesn;t work
 void respond(int socket, char *request) {
     SDLOG("connection #%d", count++);
 
@@ -27,6 +28,7 @@ void respond(int socket, char *request) {
     //temporary. responds with testroot/index.html
     FILE *resource = fopen(resourcepath, "rb");
     char *response;
+    bool needsfree = false;
     if (resource != NULL) {
         long beginning = ftell(resource);
         fseek(resource, 0, SEEK_END);
@@ -36,6 +38,7 @@ void respond(int socket, char *request) {
         SDLOG("%lu", size);
 
         fread(response, 1, size, resource);
+        needsfree = true;
     } else {
         //header still says 200 ok
         response = "404 not found";
@@ -50,8 +53,10 @@ void respond(int socket, char *request) {
     write(socket, mesg2, strlen(mesg2));
     write(socket, mesg3, strlen(mesg3));
     write(socket, response, strlen(response));
-    fclose(resource);
-    if (resource != NULL) free(response);
+    if (needsfree) {
+        fclose(resource);
+        free(response);
+    }
 }
 
 int main(int argc, char **argv) {
