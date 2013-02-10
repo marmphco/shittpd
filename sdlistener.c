@@ -23,8 +23,7 @@ struct SDListener {
     int backlog;
     int stopped;
 
-    //temporary
-    SDWorkerRef target;
+    SDRequestQueueRef queue;
 };
 
 SDListenerRef sdListenerAlloc(int port, int backlog) {
@@ -43,7 +42,7 @@ SDListenerRef sdListenerAlloc(int port, int backlog) {
     listener->backlog = backlog;
     listener->port = port;
     listener->stopped = 0;
-    listener->target = NULL;
+    listener->queue = sdRequestQueueAlloc();
 
     SDLOG("listener allocated");
     return listener;
@@ -51,6 +50,7 @@ SDListenerRef sdListenerAlloc(int port, int backlog) {
 
 void sdListenerDestroy(SDListenerRef *listener) {
     if (*listener != NULL) {
+        sdRequestQueueDestroy(&(*listener)->queue);
         free(*listener);
         *listener = NULL;
     }
@@ -74,7 +74,8 @@ void *sdListen(void *arg) {
         }
 
         SDLOG("Listener %p: socket %d: Accepted connection", listener, sock);
-        sdWorkerSubmitRequest(listener->target, sock);
+        sdRequestQueuePut(listener->queue, sock);
+        SDLOG("Listener %p: socket %d: Enqueued connection", listener, sock);
         struct timespec t = {0, 1};
         nanosleep(&t, NULL);
     }
@@ -116,6 +117,7 @@ void sdListenerStop(SDListenerRef listener) {
     close(listener->socket); //implicitly cancels the listener thread
 }
 
-void sdListenerTarget(SDListenerRef listener, SDWorkerRef worker) {
-    listener->target = worker;
+SDRequestQueueRef sdListenerRequestQueue(SDListenerRef listener) {
+    return listener->queue;
 }
+

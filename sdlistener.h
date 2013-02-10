@@ -5,7 +5,8 @@
 #ifndef SD_LISTENER_H
 #define SD_LISTENER_H
 
-#include "sdworker.h"
+#include "sdutil.h"
+#include "sdrequestqueue.h"
 
 typedef struct SDListener *SDListenerRef;
 
@@ -16,6 +17,6 @@ void sdListenerDestroy(SDListenerRef *);
 bool sdListenerStart(SDListenerRef);
 void sdListenerStop(SDListenerRef);
 
-void sdListenerTarget(SDListenerRef, SDWorkerRef);
+SDRequestQueueRef sdListenerRequestQueue(SDListenerRef);
 
 #endif
