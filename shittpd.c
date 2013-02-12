@@ -55,11 +55,11 @@ void respond(int socket, char *request) {
 }
 
 int main(int argc, char **argv) {
-    SDListenerRef listener = sdListenerAlloc(8000, 8);
+    SDListenerRef listener = sdListenerAlloc(8000, 1000);
     SDWorkerRef worker = sdWorkerAlloc(respond, sdListenerRequestQueue(listener));
     sdWorkerStart(worker);
     SDWorkerRef worker2 = sdWorkerAlloc(respond, sdListenerRequestQueue(listener));
-    sdWorkerStart(worker2);
+    //sdWorkerStart(worker2);
     if (!sdListenerStart(listener)) {
         return 1;
     }

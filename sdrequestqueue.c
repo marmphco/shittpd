@@ -3,6 +3,7 @@
 */
 
 #include "sdrequestqueue.h"
+#include "sdutil.h"
 
 #include <stdlib.h>
 #include <assert.h>
@@ -67,8 +68,8 @@ void sdRequestQueuePut(SDRequestQueueRef queue, int socket) {
     }
     queue->back = node;
     queue->length++;
+    SDLOG("Connection Queue %p: Length = %d", queue, queue->length);
     pthread_cond_broadcast(&queue->nonempty);
-
     pthread_mutex_unlock(&queue->mutex);
 }
 
@@ -97,6 +98,7 @@ int sdRequestQueueGet(SDRequestQueueRef queue) {
             socket = -1;
         }
     }
+    SDLOG("Connection Queue %p: Length = %d", queue, queue->length);
     pthread_mutex_unlock(&queue->mutex);
     return socket;
 }

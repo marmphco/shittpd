@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <pthread.h>
 
@@ -34,6 +35,7 @@ SDListenerRef sdListenerAlloc(int port, int backlog) {
     listener->address.sin_port = htons(port);
 
     listener->socket = socket(AF_INET, SOCK_STREAM, 0);
+
     if (listener->socket == -1) {
         SDLOG("Error creating socket");
         return NULL;
