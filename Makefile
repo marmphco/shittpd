@@ -1,6 +1,14 @@
+UNAME = ${shell uname}
 INCLUDEDEPS = ${filter clean,${MAKECMDGOALS}}
+
+ifeq "${UNAME}" "Darwin"
 COMPILER = clang
-FLAGS = -Wall -Wextra -std=ansi
+FLAGS = -Wall -Wextra 
+else
+COMPILER = gcc
+FLAGS = -Wall -Wextra -pthread
+endif
+
 BIN = shittpd
 CSOURCE = shittpd.c sdlistener.c sdworker.c sdrequestqueue.c
 OBJECTS = ${patsubst %.c,%.o,${CSOURCE}}
@@ -11,10 +19,10 @@ run: shittpd
 	./shittpd
 
 ${BIN}: ${OBJECTS}
-	${COMPILER} -o ${BIN} ${OBJECTS}
+	${COMPILER} ${FLAGS} -o ${BIN} ${OBJECTS}
 
 %.o: %.c
-	${COMPILER} -c $^
+	${COMPILER} ${FLAGS} -c $^
 
 dependencies: ${CSOURCE}
 	${COMPILER} -MM ${CSOURCE} > dependencies
