@@ -10,7 +10,7 @@
 
 typedef struct SDListener *SDListenerRef;
 
-SDListenerRef sdListenerAlloc(int port, int backlog);
+SDListenerRef sdListenerAlloc(int port);
 void sdListenerDestroy(SDListenerRef *);
 
 //binds the socket and starts listening

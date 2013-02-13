@@ -11,6 +11,9 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
 
 static const int REQUEST_MAX_SIZE = 4096;
 
@@ -46,16 +49,30 @@ void *work(void *arg) {
         }
         SDLOG("Worker %p: socket %d : Recieving request", worker, sock);
 
+        //hacky and temporary
+       /* int kq = kqueue();
+        struct kevent changelist;
+        EV_SET(&changelist, sock, EVFILT_READ, EV_ADD, 1000, 0, NULL);
+        struct kevent event;
+        struct timespec ts = {1,0};
+        kevent(kq, &changelist, 1, &event, 1, NULL);*/
+        //hacky and temporary
+
         char buffer[REQUEST_MAX_SIZE];
         int readcount = 0;
         readcount = recv(sock, buffer, REQUEST_MAX_SIZE, 0);
         buffer[readcount] = '\0';
-        SDLOG("%s", buffer);
+        SDLOG("###\n%s\n###", buffer);
 
         //start response
+        //hacky and temporary
+        //EV_SET(&changelist, sock, EVFILT_WRITE, EV_ADD, 1000, 0, NULL);
+        //kevent(kq, &changelist, 1, &event, 1, NULL);
+        //hacky and temporary
         SDLOG("Worker %p: socket %d : Handling request", worker, sock);
         worker->handler(sock, buffer);
         SDLOG("Worker %p: socket %d : Closing connection", worker, sock);
+        //sleep(1);
         close(sock);
     }
     pthread_exit(0);

@@ -11,6 +11,10 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
+
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
 #include <fcntl.h>
 
 #include <pthread.h>
@@ -27,7 +31,7 @@ struct SDListener {
     SDRequestQueueRef queue;
 };
 
-SDListenerRef sdListenerAlloc(int port, int backlog) {
+SDListenerRef sdListenerAlloc(int port) {
     SDListenerRef listener = malloc(sizeof(struct SDListener));
 
     listener->address.sin_family = AF_INET;
@@ -41,12 +45,12 @@ SDListenerRef sdListenerAlloc(int port, int backlog) {
         return NULL;
     }
 
-    listener->backlog = backlog;
+    listener->backlog = SOMAXCONN;
     listener->port = port;
     listener->stopped = 0;
     listener->queue = sdRequestQueueAlloc();
 
-    SDLOG("listener allocated");
+    SDLOG("listener SOMAXCONN: %d", SOMAXCONN);
     return listener;
 }
 
@@ -56,7 +60,6 @@ void sdListenerDestroy(SDListenerRef *listener) {
         free(*listener);
         *listener = NULL;
     }
-    SDLOG("Listener %p: Destroyed", *listener);
 }
 
 void *sdListen(void *arg) {
@@ -65,6 +68,16 @@ void *sdListen(void *arg) {
         struct sockaddr_in caddr;
         socklen_t caddrsize = sizeof(caddr);
         SDLOG("Listener %p: Listening for connections", listener);
+
+        //hacky and temporary
+        /*int kq = kqueue();
+        struct kevent changelist;
+        EV_SET(&changelist, listener->socket, EVFILT_READ, EV_ADD, 1000, 0, NULL);
+        struct kevent event;
+        struct timespec ts = {1,0};
+        kevent(kq, &changelist, 1, &event, 1, NULL);*/
+        //hacky and temporary
+
         int sock = accept(listener->socket, (struct sockaddr *)&caddr, &caddrsize);
         if (sock == -1) {
             if (listener->stopped == 1) {
@@ -100,6 +113,10 @@ bool sdListenerStart(SDListenerRef listener) {
         return false;
     }
     SDLOG("Listener %p: Starting", listener);
+
+    //int flags = fcntl(listener->socket, F_GETFL, 0);
+    //fcntl(listener->socket, F_SETFL, flags | O_NONBLOCK);
+
     listener->stopped = 0;
     pthread_attr_t newthreadattr;
     pthread_attr_init(&newthreadattr);
