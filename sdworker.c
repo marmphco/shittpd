@@ -12,7 +12,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <sys/event.h>
 #include <sys/time.h>
 
 static const int REQUEST_MAX_SIZE = 4096;

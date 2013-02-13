@@ -60,12 +60,21 @@ void respond(int socket, char *request) {
 }
 
 int main(int argc, char **argv) {
-    argv[argc-1] = argv[argc-1];
-    SDListenerRef listener = sdListenerAlloc(8000);
-    SDWorkerRef worker = sdWorkerAlloc(respond, sdListenerRequestQueue(listener));
-    sdWorkerStart(worker);
-    SDWorkerRef worker2 = sdWorkerAlloc(respond, sdListenerRequestQueue(listener));
-    sdWorkerStart(worker2);
+
+    if (argc != 3) {
+        fprintf(stderr, "usage: shittpd port workers\n");
+        return 1;
+    }
+
+    int port = atoi(argv[1]);
+    int worker_count = atoi(argv[2]);
+
+    SDListenerRef listener = sdListenerAlloc(port);
+    SDWorkerRef workers[worker_count];
+    for (int i = 0; i < worker_count; ++i) {
+        workers[i] = sdWorkerAlloc(respond, sdListenerRequestQueue(listener));
+        sdWorkerStart(workers[i]);
+    }
     if (!sdListenerStart(listener)) {
         return 1;
     }
@@ -73,10 +82,9 @@ int main(int argc, char **argv) {
     getchar();
     sdListenerStop(listener);
     sdListenerDestroy(&listener);
-    sdWorkerStop(worker);
-    sdWorkerDestroy(&worker);
-    sdWorkerStop(worker2);
-    sdWorkerDestroy(&worker2);
-
+    for (int i = 0; i < worker_count; ++i) {
+        sdWorkerStop(workers[i]);
+        sdWorkerDestroy(&workers[i]);
+    }
     return 0;
 }

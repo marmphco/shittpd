@@ -6,7 +6,7 @@ COMPILER = clang
 FLAGS = -Wall -Wextra 
 else
 COMPILER = gcc
-FLAGS = -Wall -Wextra -pthread
+FLAGS = -Wall -Wextra -std=c99 -pthread
 endif
 
 BIN = shittpd
