@@ -14,8 +14,17 @@ static const char *SDLOG_NAME = "Responder";
 
 typedef enum sdctype {
     TEXT_PLAIN,
-    TEXT_HTML
+    TEXT_HTML,
+    TEXT_CSS,
+    IMAGE_PNG
 } sdctype_t;
+
+static const char *CONTENT_TYPE[] = {
+    "text/plain",
+    "text/html",
+    "text/css",
+    "image/png",
+};
 
 typedef enum sdstatus {
     HTTP_200,
@@ -37,6 +46,22 @@ typedef struct sdresponse {
     char path[1024];
 } sdresponse_t;
 
+sdctype_t sdResponseContentType(char *ext) {
+    //crappy linear search through mime types
+    //cause I don't want to make a map right now.
+    sdctype_t type;
+    if(strcmp(ext, "png") == 0) {
+        type = IMAGE_PNG;
+    } else if(strcmp(ext, "html") == 0) {
+        type = TEXT_HTML;
+    } else if(strcmp(ext, "css") == 0) {
+        type = TEXT_CSS;
+    } else {
+        type = TEXT_PLAIN;
+    }
+    return type;
+}
+
 void sdResponseWrite(int socket, sdresponse_t *response) {
     FILE *resource = fopen(response->path, "rb");
     fseek(resource, 0, SEEK_END);
@@ -47,21 +72,23 @@ void sdResponseWrite(int socket, sdresponse_t *response) {
     fclose(resource);
     SDLOG("%s", responsedata);
 
-    const char *responseline = HTTP_STATUS[response->status];
-    const char *typeheader = "Content-Type: text/html\n";
+    char responseline[32];
+    sprintf(responseline, "%s\n", HTTP_STATUS[response->status]);
+    char typeheader[32];
+    sprintf(typeheader, "Content-Type: %s\n", CONTENT_TYPE[response->type]);
     char lengthheader[32];
     sprintf(lengthheader, "Content-Length: %lu\n\n", size);
     write(socket, responseline, strlen(responseline));
     write(socket, typeheader, strlen(typeheader));
     write(socket, lengthheader, strlen(lengthheader));
     write(socket, responsedata, size);
-            fprintf(stderr, "ok\n");
-
 }
 
 void sdResponseWriteError(int socket, sdresponse_t *response) {
-    const char *responseline = HTTP_STATUS[response->status];
-    const char *typeheader = "Content-Type: text/plain\n";
+    char responseline[32];
+    sprintf(responseline, "%s\n", HTTP_STATUS[response->status]);
+    char typeheader[32];
+    sprintf(typeheader, "Content-Type: %s\n", CONTENT_TYPE[TEXT_PLAIN]);
     char lengthheader[32];
     sprintf(lengthheader, "Content-Length: %lu\n\n", strlen(responseline));
 
@@ -69,8 +96,6 @@ void sdResponseWriteError(int socket, sdresponse_t *response) {
     write(socket, typeheader, strlen(typeheader));
     write(socket, lengthheader, strlen(lengthheader));
     write(socket, responseline, strlen(responseline));
-            fprintf(stderr, "error\n");
-
 }
 
 void sdResponseHandleRequest(int socket, char *request) {
@@ -88,10 +113,18 @@ void sdResponseHandleRequest(int socket, char *request) {
         strcat(res.path, req.resource);
         SDLOG(" : Real Path: %s", res.path);
         if (access(res.path, F_OK) == 0) {
+            struct stat statbuf;
+            stat(res.path, &statbuf);
+            if (S_ISDIR(statbuf.st_mode)) {
+                strcat(res.path, "/index.html");
+            }
             if (access(res.path, R_OK) == 0) {
                 SDLOG(": 200");
                 //200
                 res.status = HTTP_200;
+                char *ext = strrchr(res.path, '.')+1;
+                res.type = sdResponseContentType(ext);
+
             } else {
                 SDLOG(": 403");
                 res.status = HTTP_403;

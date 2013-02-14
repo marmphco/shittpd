@@ -20,57 +20,6 @@ static const char *SDLOG_NAME = "shittpd";
 // this doesn't work well
 void respond(int socket, char *request) {
     SDLOG("connection #%d", count++);
-   /* sdrequest_t req;
-    sdRequestInit(&req);
-    if (sdRequestParse(&req, request) == -1) {
-        fprintf(stderr, "400\n");
-        char *response = "400 Bad Request";
-        char *mesg = "HTTP/1.0 400 Bad Request\n";
-        char *mesg2 = "Content-Type: text/plain\n";
-        char mesg3[32];
-        sprintf(mesg3, "Content-Length: %lu\n\n", strlen(response));
-        write(socket, mesg, strlen(mesg));
-        write(socket, mesg2, strlen(mesg2));
-        write(socket, mesg3, strlen(mesg3));
-        write(socket, response, strlen(response));
-    } else {
-        if (access(req.resource, R_OK) == 0) {
-            fprintf(stderr, "200\n");
-            struct stat statstr;
-            stat(req.resource, &statstr);
-
-            FILE *resource = fopen(req.resource, "rb");
-            fseek(resource, 0, SEEK_END);
-            long size = ftell(resource);
-            rewind(resource);
-            char response[size];
-            fread(response, 1, size, resource);
-            fclose(resource);
-            SDLOG("%s", response);
-
-            char *mesg = "HTTP/1.0 200 OK\n";
-            char *mesg2 = "Content-Type: text/html\n";
-            char mesg3[32];
-            sprintf(mesg3, "Content-Length: %lu\n\n", size);
-            write(socket, mesg, strlen(mesg));
-            write(socket, mesg2, strlen(mesg2));
-            write(socket, mesg3, strlen(mesg3));
-            write(socket, response, size);
-        } else {
-            fprintf(stderr, "404\n");
-            char *response = "404 Not Found";
-            char *mesg = "HTTP/1.0 404 Not Found\n";
-            char *mesg2 = "Content-Type: text/plain\n";
-            char mesg3[32];
-            sprintf(mesg3, "Content-Length: %lu\n\n", strlen(response));
-            write(socket, mesg, strlen(mesg));
-            write(socket, mesg2, strlen(mesg2));
-            write(socket, mesg3, strlen(mesg3));
-            write(socket, response, strlen(response));
-        }
-    }
-    sdRequestDestroy(&req);
-    close(socket);*/
     sdResponseHandleRequest(socket, request);
 }
 

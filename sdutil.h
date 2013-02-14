@@ -7,7 +7,7 @@
 
 #include <stdio.h>
 
-//#define SD_DEBUG
+#define SD_DEBUG
 
 #ifdef SD_DEBUG
 #define SDLOG(fmt, ...) fprintf(stderr, "%s"fmt"\n", SDLOG_NAME,  ##__VA_ARGS__);

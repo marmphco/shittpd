@@ -52,7 +52,6 @@ void *work(void *arg) {
         int readcount = 0;
         readcount = recv(sock, buffer, REQUEST_MAX_SIZE, 0);
         buffer[readcount] = '\0';
-        SDLOG("###\n%s\n###", buffer);
 
         SDLOG(" %p: socket %d : Handling request", worker, sock);
         worker->handler(sock, buffer);
