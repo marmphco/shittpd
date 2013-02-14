@@ -3,6 +3,7 @@
 */
 
 #include "sdlistener.h"
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,22 +13,23 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <fcntl.h>
-
 #include <pthread.h>
 
 #include "sdutil.h"
+
+/*
+  Logging
+*/
+static const char *SDLOG_NAME = "Listener";
 
 struct SDListener {
     struct sockaddr_in address;
     int port;
     int socket;
     int backlog;
-    int stopped;
 
-    SDRequestQueueRef queue;
+    pthread_t thread;
+    SDConnectionQueueRef queue;
 };
 
 SDListenerRef sdListenerAlloc(int port) {
@@ -40,25 +42,23 @@ SDListenerRef sdListenerAlloc(int port) {
     listener->socket = socket(AF_INET, SOCK_STREAM, 0);
 
     if (listener->socket == -1) {
-        SDLOG("Error creating socket");
+        SDLOG(" %p: Error creating socket", listener);
         return NULL;
     }
 
     listener->backlog = SOMAXCONN;
     listener->port = port;
-    listener->stopped = 0;
-    listener->queue = sdRequestQueueAlloc();
+    listener->queue = NULL;
 
-    SDLOG("listener SOMAXCONN: %d", SOMAXCONN);
     return listener;
 }
 
 void sdListenerDestroy(SDListenerRef *listener) {
-    if (*listener != NULL) {
-        sdRequestQueueDestroy(&(*listener)->queue);
-        free(*listener);
-        *listener = NULL;
-    }
+    assert(listener != NULL);
+    assert(*listener != NULL);
+
+    free(*listener);
+    *listener = NULL;
 }
 
 void *sdListen(void *arg) {
@@ -66,7 +66,61 @@ void *sdListen(void *arg) {
     for (;;) {
         struct sockaddr_in caddr;
         socklen_t caddrsize = sizeof(caddr);
-        SDLOG("Listener %p: Listening for connections", listener);
+        SDLOG(" %p: Listening for connections", listener);
+
+        int sock = accept(listener->socket, (struct sockaddr *)&caddr, &caddrsize);
+        if (sock == -1) {
+            SDLOG(" %p: Error accepting connection", listener);
+            break;
+        }
+
+        SDLOG(" %p: socket %d: Accepted connection", listener, sock);
+        sdConnectionQueuePut(listener->queue, sock);
+        SDLOG(" %p: socket %d: Enqueued connection", listener, sock);
+    }
+    pthread_exit(0);
+    return 0;
+}
+
+int sdListenerStart(SDListenerRef listener, SDConnectionQueueRef queue) {
+    assert(listener != NULL);
+    assert(queue != NULL);
+
+    int status = bind(listener->socket, 
+                      (struct sockaddr *)&listener->address,
+                      sizeof(listener->address));
+    if (status == -1) {
+        SDLOG(" %p: Error binding socket, port: %d", listener, listener->port);
+        return 0;
+    }
+
+    status = listen(listener->socket, listener->backlog);
+    if (status == -1) {
+        SDLOG(" %p: Error listening on socket, port: %d", listener, listener->port);
+        return 0;
+    }
+    SDLOG(" %p: Started", listener);
+
+    listener->queue = queue;
+    pthread_attr_t newthreadattr;
+    pthread_attr_init(&newthreadattr);
+    pthread_attr_setdetachstate(&newthreadattr, PTHREAD_CREATE_DETACHED);
+    pthread_create(&listener->thread, &newthreadattr, sdListen, listener);
+    pthread_attr_destroy(&newthreadattr);
+
+    return 1;
+}
+
+void sdListenerStop(SDListenerRef listener) {
+    assert(listener != NULL);
+
+    pthread_cancel(listener->thread);
+    close(listener->socket); //implicitly cancels the listener thread
+    SDLOG(" %p: Stopped", listener);
+}
+
+        //int flags = fcntl(listener->socket, F_GETFL, 0);
+        //fcntl(listener->socket, F_SETFL, flags | O_NONBLOCK);
 
         //hacky and temporary
         /*int kq = kqueue();
@@ -76,66 +130,3 @@ void *sdListen(void *arg) {
         struct timespec ts = {1,0};
         kevent(kq, &changelist, 1, &event, 1, NULL);*/
         //hacky and temporary
-
-        int sock = accept(listener->socket, (struct sockaddr *)&caddr, &caddrsize);
-        if (sock == -1) {
-            if (listener->stopped == 1) {
-                SDLOG("Listener stopped");
-            } else {
-                SDLOG("Error accepting connection");
-            }
-            break;
-        }
-
-        SDLOG("Listener %p: socket %d: Accepted connection", listener, sock);
-        sdRequestQueuePut(listener->queue, sock);
-        SDLOG("Listener %p: socket %d: Enqueued connection", listener, sock);
-        struct timespec t = {0, 1};
-        nanosleep(&t, NULL);
-    }
-    pthread_exit(0);
-    return 0;
-}
-
-bool sdListenerStart(SDListenerRef listener) {
-    int status = bind(listener->socket, 
-                      (struct sockaddr *)&listener->address,
-                      sizeof(listener->address));
-    if (status == -1) {
-        SDLOG("Error binding socket on port: %d", listener->port);
-        return false;
-    }
-
-    status = listen(listener->socket, listener->backlog);
-    if (status == -1) {
-        SDLOG("Error listening on socket on port: %d", listener->port);
-        return false;
-    }
-    SDLOG("Listener %p: Starting", listener);
-
-    //int flags = fcntl(listener->socket, F_GETFL, 0);
-    //fcntl(listener->socket, F_SETFL, flags | O_NONBLOCK);
-
-    listener->stopped = 0;
-    pthread_attr_t newthreadattr;
-    pthread_attr_init(&newthreadattr);
-    pthread_attr_setdetachstate(&newthreadattr, PTHREAD_CREATE_DETACHED);
-
-    pthread_t listenThread;
-    pthread_create(&listenThread, &newthreadattr, sdListen, listener);
-
-    pthread_attr_destroy(&newthreadattr);
-
-    return true;
-}
-
-void sdListenerStop(SDListenerRef listener) {
-    SDLOG("listener %p: Stopping", listener);
-    listener->stopped = 1; //pthread_cancel?
-    close(listener->socket); //implicitly cancels the listener thread
-}
-
-SDRequestQueueRef sdListenerRequestQueue(SDListenerRef listener) {
-    return listener->queue;
-}
-

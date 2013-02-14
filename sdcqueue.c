@@ -1,14 +1,15 @@
 /*
- sdrequestqueue.c
+ sdcqueue.c
 */
 
-#include "sdrequestqueue.h"
+#include "sdcqueue.h"
 #include "sdutil.h"
 
 #include <stdlib.h>
 #include <assert.h>
 #include <pthread.h>
-#include <unistd.h>
+
+static const char *SDLOG_NAME = "Connection Queue";
 
 typedef struct SDNode *SDNodeRef;
 struct SDNode {
@@ -30,7 +31,7 @@ void sdNodeDestroy(SDNodeRef *node) {
     *node = NULL;
 }
 
-struct SDRequestQueue {
+struct SDConnectionQueue {
     SDNodeRef front;
     SDNodeRef back;
     int length;
@@ -38,8 +39,8 @@ struct SDRequestQueue {
     pthread_cond_t nonempty;
 };
 
-SDRequestQueueRef sdRequestQueueAlloc() {
-    SDRequestQueueRef queue = malloc(sizeof(struct SDRequestQueue));
+SDConnectionQueueRef sdConnectionQueueAlloc() {
+    SDConnectionQueueRef queue = malloc(sizeof(struct SDConnectionQueue));
     queue->length = 0;
     queue->front = NULL;
     queue->back = NULL;
@@ -48,18 +49,19 @@ SDRequestQueueRef sdRequestQueueAlloc() {
     return queue;
 }
 
-void sdRequestQueueDestroy(SDRequestQueueRef *queue) {
+void sdConnectionQueueDestroy(SDConnectionQueueRef *queue) {
     assert(queue != NULL);
     assert(*queue != NULL);
     pthread_mutex_destroy(&(*queue)->mutex);
     pthread_cond_destroy(&(*queue)->nonempty);
     free(*queue);
+    *queue = NULL;
 }
 
-void sdRequestQueuePut(SDRequestQueueRef queue, int socket) {
+void sdConnectionQueuePut(SDConnectionQueueRef queue, int socket) {
     assert(queue != NULL);
-    pthread_mutex_lock(&queue->mutex);
 
+    pthread_mutex_lock(&queue->mutex);
     SDNodeRef node = sdNodeAlloc(socket);
     if (queue->front == NULL) {
         queue->front = node;
@@ -68,17 +70,13 @@ void sdRequestQueuePut(SDRequestQueueRef queue, int socket) {
     }
     queue->back = node;
     queue->length++;
-    SDLOG("Connection Queue %p: Length = %d", queue, queue->length);
+    SDLOG(" %p: Length = %d", queue, queue->length);
     pthread_cond_broadcast(&queue->nonempty);
     pthread_mutex_unlock(&queue->mutex);
 }
 
-/*
- TODO This is really messy and needs to be cleaned up
-*/
-int sdRequestQueueGet(SDRequestQueueRef queue) {
+int sdConnectionQueueGet(SDConnectionQueueRef queue) {
     assert(queue != NULL);
-    pthread_mutex_lock(&queue->mutex);
     int socket;
     if (queue->length >= 1) {
         SDNodeRef node = queue->front;
@@ -87,18 +85,21 @@ int sdRequestQueueGet(SDRequestQueueRef queue) {
         queue->length -= 1;
         sdNodeDestroy(&node);
     } else {
-        pthread_cond_wait(&queue->nonempty, &queue->mutex);
-        if (queue->length >= 1) {
-            SDNodeRef node = queue->front;
-            socket = node->socket;
-            queue->front = node->next;
-            queue->length -= 1;
-            sdNodeDestroy(&node);
-        } else {
-            socket = -1;
-        }
+        socket = -1;
     }
-    SDLOG("Connection Queue %p: Length = %d", queue, queue->length);
+    return socket;
+}
+
+int sdConnectionQueueWaitGet(SDConnectionQueueRef queue) {
+    assert(queue != NULL);
+
+    pthread_mutex_lock(&queue->mutex);
+    int socket = sdConnectionQueueGet(queue);
+    if (socket == -1) {
+        pthread_cond_wait(&queue->nonempty, &queue->mutex);
+        socket = sdConnectionQueueGet(queue);
+    }
+    SDLOG(" %p: Length = %d", queue, queue->length);
     pthread_mutex_unlock(&queue->mutex);
     return socket;
 }

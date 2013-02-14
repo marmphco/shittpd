@@ -5,58 +5,69 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "sdlistener.h"
 #include "sdworker.h"
 #include "sdutil.h"
+#include "sdrparse.h"
 
 static int count = 0;
+static const char *SDLOG_NAME = "shittpd";
 
-// this doesn;t work
+// this doesn;t work well
 void respond(int socket, char *request) {
     SDLOG("connection #%d", count++);
 
-    //more temporary things, all in one super function
-    // ahhh yis the best practices evaaarr
-    // MY GOD ITS SO SLOPPY
-    char resourcepath[2048] = "testroot";
-    sscanf(request, "GET %s ", (char *)resourcepath+strlen(resourcepath));
-    SDLOG("requested: %s", resourcepath);
-
-    //temporary. responds with testroot/index.html
-    FILE *resource = fopen(resourcepath, "rb");
-    char *response;
-    bool needsfree = false;
-    if (resource != NULL) {
-        long beginning = ftell(resource);
-        fseek(resource, 0, SEEK_END);
-        long size = ftell(resource)-beginning;
-        fseek(resource, 0, SEEK_SET);
-        response = malloc(sizeof(char)*(size+1));
-        SDLOG("%lu", size);
-
-        fread(response, 1, size, resource);
-        needsfree = true;
+    sdrequest_t req;
+    sdRequestInit(&req);
+    if (sdRequestParse(&req, request) == -1) {
+        char *response = "400 Bad Request";
+        char *mesg = "HTTP/1.0 400 Bad Request\n";
+        char *mesg2 = "Content-Type: text/plain\n";
+        char mesg3[32];
+        sprintf(mesg3, "Content-Length: %lu\n\n", strlen(response));
+        write(socket, mesg, strlen(mesg));
+        write(socket, mesg2, strlen(mesg2));
+        write(socket, mesg3, strlen(mesg3));
+        write(socket, response, strlen(response));
     } else {
-        //header still says 200 ok
-        response = "404 not found";
-    }
-    SDLOG("response: %s", response);
+        if (access(req.resource, R_OK) == 0) {
+            struct stat statstr;
+            stat(req.resource, &statstr);
 
-    char *mesg = "HTTP/1.0 200 OK\n";
-    char *mesg2 = "Content-Type: text/html\n";
-    char mesg3[1024];
-    sprintf(mesg3, "Content-Length: %lu\n\n", strlen(response));
-    write(socket, mesg, strlen(mesg));
-    write(socket, mesg2, strlen(mesg2));
-    write(socket, mesg3, strlen(mesg3));
-    write(socket, response, strlen(response));
-    if (needsfree) {
-        fclose(resource);
-        free(response);
+            FILE *resource = fopen(req.resource, "rb");
+            fseek(resource, 0, SEEK_END);
+            long size = ftell(resource);
+            rewind(resource);
+            char response[size];
+            fread(response, 1, size, resource);
+            fclose(resource);
+            SDLOG("%s", response);
+
+            char *mesg = "HTTP/1.0 200 OK\n";
+            char *mesg2 = "Content-Type: text/html\n";
+            char mesg3[32];
+            sprintf(mesg3, "Content-Length: %lu\n\n", size);
+            write(socket, mesg, strlen(mesg));
+            write(socket, mesg2, strlen(mesg2));
+            write(socket, mesg3, strlen(mesg3));
+            write(socket, response, size);
+        } else {
+            char *response = "404 Not Found";
+            char *mesg = "HTTP/1.0 404 Not Found\n";
+            char *mesg2 = "Content-Type: text/plain\n";
+            char mesg3[32];
+            sprintf(mesg3, "Content-Length: %lu\n\n", strlen(response));
+            write(socket, mesg, strlen(mesg));
+            write(socket, mesg2, strlen(mesg2));
+            write(socket, mesg3, strlen(mesg3));
+            write(socket, response, strlen(response));
+        }
     }
+    sdRequestDestroy(&req);
+    close(socket);
 }
 
 int main(int argc, char **argv) {
@@ -70,18 +81,21 @@ int main(int argc, char **argv) {
     int worker_count = atoi(argv[2]);
 
     SDListenerRef listener = sdListenerAlloc(port);
+    SDConnectionQueueRef queue = sdConnectionQueueAlloc();
+
     SDWorkerRef workers[worker_count];
     for (int i = 0; i < worker_count; ++i) {
-        workers[i] = sdWorkerAlloc(respond, sdListenerRequestQueue(listener));
-        sdWorkerStart(workers[i]);
+        workers[i] = sdWorkerAlloc(respond);
+        sdWorkerStart(workers[i], queue);
     }
-    if (!sdListenerStart(listener)) {
+    if (!sdListenerStart(listener, queue)) {
         return 1;
     }
 
     getchar();
     sdListenerStop(listener);
     sdListenerDestroy(&listener);
+    sdConnectionQueueDestroy(&queue);
     for (int i = 0; i < worker_count; ++i) {
         sdWorkerStop(workers[i]);
         sdWorkerDestroy(&workers[i]);

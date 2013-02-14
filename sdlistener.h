@@ -6,7 +6,7 @@
 #define SD_LISTENER_H
 
 #include "sdutil.h"
-#include "sdrequestqueue.h"
+#include "sdcqueue.h"
 
 typedef struct SDListener *SDListenerRef;
 
@@ -14,9 +14,7 @@ SDListenerRef sdListenerAlloc(int port);
 void sdListenerDestroy(SDListenerRef *);
 
 //binds the socket and starts listening
-bool sdListenerStart(SDListenerRef);
+int sdListenerStart(SDListenerRef, SDConnectionQueueRef);
 void sdListenerStop(SDListenerRef);
-
-SDRequestQueueRef sdListenerRequestQueue(SDListenerRef);
 
 #endif
