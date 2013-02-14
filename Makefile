@@ -10,7 +10,7 @@ FLAGS = -Wall -Wextra -std=c99 -pthread
 endif
 
 BIN = shittpd
-CSOURCE = shittpd.c sdlistener.c sdworker.c sdcqueue.c sdrparse.c
+CSOURCE = shittpd.c sdlistener.c sdworker.c sdcqueue.c sdrparse.c sdresponse.c
 OBJECTS = ${patsubst %.c,%.o,${CSOURCE}}
 
 all: shittpd

@@ -30,10 +30,7 @@ int sdRequestParse(sdrequest_t *out, char *request) {
     SDLOG(": Method: %s", method);
     SDLOG(": Resource: %s", resource);
     SDLOG(": Protocol: %s", protocol);
-    char *root = "testroot";
-    out->resource = malloc(sizeof(char)*(strlen(root)+strlen(resource)));
-    strcpy(out->resource, root);
-    strcat(out->resource, resource);
+    out->resource = strdup(resource);
     line = strtok(NULL, "\n");
 
     // Headers

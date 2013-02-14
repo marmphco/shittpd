@@ -91,13 +91,37 @@ int sdConnectionQueueGet(SDConnectionQueueRef queue) {
 }
 
 int sdConnectionQueueWaitGet(SDConnectionQueueRef queue) {
-    assert(queue != NULL);
+    /*assert(queue != NULL);
 
     pthread_mutex_lock(&queue->mutex);
     int socket = sdConnectionQueueGet(queue);
     if (socket == -1) {
         pthread_cond_wait(&queue->nonempty, &queue->mutex);
         socket = sdConnectionQueueGet(queue);
+    }
+    SDLOG(" %p: Length = %d", queue, queue->length);
+    pthread_mutex_unlock(&queue->mutex);
+    return socket;*/
+    assert(queue != NULL);
+    pthread_mutex_lock(&queue->mutex);
+    int socket;
+    if (queue->length >= 1) {
+        SDNodeRef node = queue->front;
+        socket = node->socket;
+        queue->front = node->next;
+        queue->length -= 1;
+        sdNodeDestroy(&node);
+    } else {
+        pthread_cond_wait(&queue->nonempty, &queue->mutex);
+        if (queue->length >= 1) {
+            SDNodeRef node = queue->front;
+            socket = node->socket;
+            queue->front = node->next;
+            queue->length -= 1;
+            sdNodeDestroy(&node);
+        } else {
+            socket = -1;
+        }
     }
     SDLOG(" %p: Length = %d", queue, queue->length);
     pthread_mutex_unlock(&queue->mutex);

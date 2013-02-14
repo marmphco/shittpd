@@ -12,17 +12,18 @@
 #include "sdworker.h"
 #include "sdutil.h"
 #include "sdrparse.h"
+#include "sdresponse.h"
 
 static int count = 0;
 static const char *SDLOG_NAME = "shittpd";
 
-// this doesn;t work well
+// this doesn't work well
 void respond(int socket, char *request) {
     SDLOG("connection #%d", count++);
-
-    sdrequest_t req;
+   /* sdrequest_t req;
     sdRequestInit(&req);
     if (sdRequestParse(&req, request) == -1) {
+        fprintf(stderr, "400\n");
         char *response = "400 Bad Request";
         char *mesg = "HTTP/1.0 400 Bad Request\n";
         char *mesg2 = "Content-Type: text/plain\n";
@@ -34,6 +35,7 @@ void respond(int socket, char *request) {
         write(socket, response, strlen(response));
     } else {
         if (access(req.resource, R_OK) == 0) {
+            fprintf(stderr, "200\n");
             struct stat statstr;
             stat(req.resource, &statstr);
 
@@ -55,6 +57,7 @@ void respond(int socket, char *request) {
             write(socket, mesg3, strlen(mesg3));
             write(socket, response, size);
         } else {
+            fprintf(stderr, "404\n");
             char *response = "404 Not Found";
             char *mesg = "HTTP/1.0 404 Not Found\n";
             char *mesg2 = "Content-Type: text/plain\n";
@@ -67,7 +70,8 @@ void respond(int socket, char *request) {
         }
     }
     sdRequestDestroy(&req);
-    close(socket);
+    close(socket);*/
+    sdResponseHandleRequest(socket, request);
 }
 
 int main(int argc, char **argv) {

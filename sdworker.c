@@ -5,6 +5,7 @@
 */
 
 #include "sdworker.h"
+#include "sdresponse.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -26,7 +27,6 @@ struct SDWorker {
 SDWorkerRef sdWorkerAlloc(sdHandler_t handler) {
     SDWorkerRef worker = malloc(sizeof(struct SDWorker));
     worker->handler = handler;
-
     return worker;
 }
 
