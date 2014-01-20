@@ -1,6 +1,5 @@
 #Shittpd
 ###The Super Hyper Interwebs Text Transfer Protocol Daemon  
-Pronounced shit-tee
 
 Shittpd is a simple, but dysfunctional http server, hence the name shittpd. If you take a quick glance at the code, it is clear that I don't know what I am doing.
 
